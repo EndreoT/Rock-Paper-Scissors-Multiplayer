@@ -22,11 +22,14 @@
     <div id='game-content'>
         <h1>Opponent: <span id='opponent'></span></h1>
         <h1>Your choice: <span id="your-choice"></span></h1>
-        <button id='rock' type='button'>Rock</button>
-        <button id='paper' type='button'>Paper</button>
-        <button id='scissors' type='button'>Scissors</button>
+        <div id="rps-buttons">
+            <button class="rps-button" type='button' data-move="rock">Rock</button>
+            <button class="rps-button" type='button' data-move="paper">Paper</button>
+            <button class="rps-button" type='button' data-move="scissors">Scissors</button>
+        </div>
 
-        <h1 >Opponent's choice: <span id="opponent-choice"></span></h1>
+        <h1 id="wait-for-opponent-choice">Waiting for opponenet's choice...</h1>
+        <h1>Opponent's choice: <span id="opponent-choice"></span></h1>
     </div>
 
     <!-- Optional JavaScript -->

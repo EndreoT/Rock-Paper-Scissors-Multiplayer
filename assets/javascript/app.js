@@ -20,23 +20,33 @@ let gameRef; // Ref for user's game
 // const name = prompt("Enter your name");
 // const connection = connectionsRef.push(name);
 
-const user = {
-    name: Math.floor(Math.random() * 100),
-    id: '',
-    gameId: '',
-    currentlyPlaying: false,
-    creater: false,
-    joiner: false
-}
-
 const RPS_Moves = {
     ROCK: 'ROCK',
     PAPER: 'PAPER',
     SCISSORS: 'SCISSORS'
 }
 
+const playerTypes = {
+    CREATER: 'CREATER',
+    JOINER: 'JOINER'
+}
+
+const user = {
+    name: Math.floor(Math.random() * 100),
+    id: '',
+    gameId: '',
+    // currentlyPlaying: false,
+    playerType: '' // either 'CREATER' or 'JOINER'
+}
+
 function initElements() {
     $('#waiting').hide();
+    $('#game-content').hide();
+}
+
+function displayGame() {
+    $('#waiting').hide();
+    $('#game-content').show();
 }
 
 initElements();
@@ -57,7 +67,7 @@ connectionsRef.once('child_added', function (connectionSnap) {
 });
 
 function determineWinner(createrChoice, joinerChoice) {
-    let outcome = 'joiner';
+    let outcome = playerTypes.JOINER;
 
     if (createrChoice === joinerChoice) {
         outcome = 'tie';
@@ -65,48 +75,51 @@ function determineWinner(createrChoice, joinerChoice) {
         (createrChoice === RPS_Moves.ROCK && joinerChoice === RPS_Moves.SCISSORS) ||
         (createrChoice === RPS_Moves.SCISSORS && joinerChoice === RPS_Moves.PAPER) ||
         (createrChoice === RPS_Moves.PAPER && joinerChoice === RPS_Moves.ROCK)) {
-        outcome = 'creater'
+        outcome = playerTypes.CREATER;
     }
     return outcome;
 }
 
+function showOutcome() {
+    $('#wait-for-opponent-choice').hide();
+}
 
 function trackGame() { // Set up tracking for game
     gameRef.on('value', function (snap) {
+        console.log('tracking')
         const gameState = snap.val();
         if (!gameState.isAvailable) { // Game has begun
-            user.currentlyPlaying = true;
-            $('#waiting').hide();
-            if (user.creater) {
-                $('#opponent').text(gameState.joiner.name)
-            } else if (user.joiner) {
-                $('#opponent').text(gameState.creater.name)
+            // user.currentlyPlaying = true;
+            displayGame();
+            if (user.playerType === playerTypes.CREATER) {
+                $('#opponent').text(gameState.JOINER.name)
+            } else {
+                $('#opponent').text(gameState.CREATER.name)
             }
         }
-        if (gameState.creater.choice && gameState.joiner.choice) { // Check for winner
-            const winner = determineWinner(gameState.creater.choice, gameState.joiner.choice)
-            if (winner === 'tie') {
-                console.log("You and your opponent tied!");
-            } else if (user.creater && (winner === 'creater')) {
-                console.log("You win!")
-                const createrWins = gameState.creater.wins;
-                gameRef.child('/creater').update({
-                    wins: createrWins + 1,
-                });
-            } else {
-                console.log("You lose!")
-                const joinerWins = gameState.joiner.wins;
-                gameRef.child('/joiner').update({
-                    wins: joinerWins + 1,
-                });
-            }
+        if (!gameState.gameOver && gameState.CREATER.choice && gameState.JOINER.choice) { // Both players submitted RPS move
             gameRef.update({
                 gameOver: true,
             });
+            showOutcome();
+            const winner = determineWinner(gameState.CREATER.choice, gameState.JOINER.choice) // Get winner
+            if (winner === 'tie') {
+                console.log("You and your opponent tied!");
+            } else { // Update wins
+                const winnerNumCurrentWins = parseInt(gameState[winner].wins)
+                gameRef.child('/' + winner).update({
+                    wins: winnerNumCurrentWins + 1,
+                });
+                if (user.playerType === winner) {
+                    console.log("You win")
+                } else {
+                    console.log("You lose!")
+                }
+            }
+
         }
     })
 }
-
 
 $('#queue').click(function () {
     // queueRef.orderByKey().limitToFirst(1).once('value', function (snapshot) {
@@ -115,33 +128,32 @@ $('#queue').click(function () {
         if (!availableGame) { // No games in queue. Waiting for other player
             const newGame = queueRef.push( // Create a new game in lobby
                 {
-                    creater: { name: user.name, id: user.id, choice: '', wins: '' },
+                    CREATER: { name: user.name, id: user.id, choice: '', wins: 0 },
                     isAvailable: true,
                     gameOver: false,
                 }
             );
             gameRef = newGame;
             user.gameId = gameRef.key
-            user.creater = true;
+            user.playerType = playerTypes.CREATER;
 
             $('#waiting').show();
 
         } else { // Game found. 
             // queueRef.child(Object.entries(availableGame)[0][0]).remove()// Remove from queues
-            console.log(availableGame)
             const gameKey = Object.entries(availableGame)[0][0]
-            queueRef.child(gameKey + '/joiner').update({
+            queueRef.child(gameKey + '/JOINER').update({
                 name: user.name,
                 id: user.id,
                 choice: '',
-                wins: ''
+                wins: 0
             });
             queueRef.child(gameKey).update({
                 isAvailable: false
             });
             gameRef = database.ref('/queue/' + gameKey);
             user.gameId = gameKey;
-            user.joiner = true;
+            user.playerType = playerTypes.JOINER;
         }
         trackGame();
     }, function (error) {
@@ -149,44 +161,38 @@ $('#queue').click(function () {
     })
 });
 
-$('#rock').click(function () {
-    $('#your-choice').text('Rock');
-    if (user.creater) {
-        gameRef.child('/creater').update({
-            choice: RPS_Moves.ROCK,
-        });
-    } else if (user.joiner) {
-        gameRef.child('/joiner').update({
-            choice: RPS_Moves.ROCK,
-        });
-    }
+
+$('.rps-button').click(function () {
+    const choice = $(this).attr('data-move').toUpperCase();
+    $('#your-choice').text(choice);
+    gameRef.child('/' + user.playerType).update({
+        choice: RPS_Moves[choice],
+    });
+    $('#rps-buttons').hide();
+    $('#wait-for-opponent-choice').show();
 });
 
-$('#paper').click(function () {
-    $('#your-choice').text('Paper')
-    if (user.creater) {
-        gameRef.child('/creater').update({
-            choice: RPS_Moves.PAPER,
-        });
-    } else if (user.joiner) {
-        gameRef.child('/joiner').update({
-            choice: RPS_Moves.PAPER,
-        });
-    }
-})
 
-$('#scissors').click(function () {
-    $('#your-choice').text('Scissors')
-    if (user.creater) {
-        gameRef.child('/creater').update({
-            choice: RPS_Moves.SCISSORS,
-        });
-    } else if (user.joiner) {
-        gameRef.child('/joiner').update({
-            choice: RPS_Moves.SCISSORS,
-        });
-    }
-})
+
+
+
+// function hideRPS_Buttons() {
+//     $('#rps-buttons').hide();
+// }
+
+// $('#paper').click(function () {
+//     $('#your-choice').text('Paper')
+//     gameRef.child('/' + user.playerType).update({
+//         choice: RPS_Moves.PAPER,
+//     });
+// })
+
+// $('#scissors').click(function () {
+//     $('#your-choice').text('Scissors')
+//     gameRef.child('/' + user.playerType).update({
+//         choice: RPS_Moves.SCISSORS,
+//     });
+// })
 
 
 
