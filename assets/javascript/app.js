@@ -13,9 +13,11 @@ const database = firebase.database();
 
 const gamesRef = database.ref('/game');
 const queueRef = database.ref('/queue');
+const playersRef = database.ref('/players');
 const connectionsRef = database.ref('/connections');
 const connectedUsersRef = database.ref('.info/connected');
 let gameRef; // Ref for user's game
+let playerRef; // Ref to player
 
 // const name = prompt("Enter your name");
 // const connection = connectionsRef.push(name);
@@ -31,25 +33,42 @@ const playerTypes = {
     JOINER: 'JOINER'
 }
 
+function getOppositePlayerType(playerType) {
+    if (playerType === playerTypes.CREATER) {
+        return playerTypes.JOINER;
+    }
+    return playerTypes.CREATER;
+}
+
 const user = {
     name: Math.floor(Math.random() * 100),
     id: '',
     gameId: '',
-    // currentlyPlaying: false,
     playerType: '' // either 'CREATER' or 'JOINER'
 }
 
 function initElements() {
+    $('#queue').show();
     $('#waiting').hide();
-    $('#game-content').hide();
+    $('#wait-for-opponent-choice').hide();
+    $('#wait-for-player-choice').hide();
+    $('#opponent-name').hide();
+    $('#opponent').text('');
+    $("#resolve-game").hide();
+    $('#player-name').text(user.name);
+    $('#rps-buttons').hide();
+    $('#choice').hide();
+    $('#your-choice').text('');
 }
 
 function displayGame() {
     $('#waiting').hide();
-    $('#game-content').show();
+    $('#opponent-name').show();
+    $('#rps-buttons').show();
 }
 
 initElements();
+
 
 
 // Detect changes in user connections
@@ -64,11 +83,27 @@ connectedUsersRef.on('value', function (snapshot) {
 
 connectionsRef.once('child_added', function (connectionSnap) {
     user.id = connectionSnap.key;
+    player = playersRef.push({
+        name: user.name,
+        id: user.id,
+        wins: 0
+    });
+    playerRef = player;
+    trackPlayer();
+    player.onDisconnect().remove()
+}, function (errorObject) {
+    console.log("The read failed: " + errorObject.code)
 });
+
+// Establishes connection on player change
+function trackPlayer() {
+    playerRef.on('value', function (snapshot) {
+        $('#wins').text(snapshot.val().wins)
+    })
+}
 
 function determineWinner(createrChoice, joinerChoice) {
     let outcome = playerTypes.JOINER;
-
     if (createrChoice === joinerChoice) {
         outcome = 'tie';
     } else if (
@@ -80,55 +115,74 @@ function determineWinner(createrChoice, joinerChoice) {
     return outcome;
 }
 
-function showOutcome() {
+function showOutcome(opponentChoice) {
     $('#wait-for-opponent-choice').hide();
+    $('#wait-for-player-choice').hide();
+    $('#resolve-game').show();
+    $('#opponent-choice').text(opponentChoice)
 }
 
 function trackGame() { // Set up tracking for game
     gameRef.on('value', function (snap) {
-        console.log('tracking')
+        
         const gameState = snap.val();
-        if (!gameState.isAvailable) { // Game has begun
-            // user.currentlyPlaying = true;
+
+        if (!gameState.gameOver && gameState.CREATER.choice && gameState.JOINER.choice) { // Both players submitted RPS move
+            // console.log(gameRef)
+            // console.log(gameState)
+            gameRef.update({
+                gameOver: true,
+            });
+            const oppostitePlayerType = getOppositePlayerType(user.playerType)
+            showOutcome(gameState[oppostitePlayerType].choice);
+            const winner = determineWinner(gameState.CREATER.choice, gameState.JOINER.choice) // Get winner
+            if (winner === 'tie') {
+                $('#game-outcome').text("You and your opponent tied!");
+            } else { // Update wins
+                if (user.playerType === winner) {
+                    playerRef.once('value', function (snapshot) {
+                        const currentWins = parseInt(snapshot.val().wins);
+                        playerRef.update({
+                            wins: currentWins + 1
+                        })
+                    })
+                    $('#game-outcome').text("You win")
+                } else {
+                    $('#game-outcome').text("You lose!")
+                }
+            }
+        } else if (!gameState.gameOver && !gameState.isAvailable) { // Second player joined game 
             displayGame();
             if (user.playerType === playerTypes.CREATER) {
                 $('#opponent').text(gameState.JOINER.name)
             } else {
                 $('#opponent').text(gameState.CREATER.name)
             }
-        }
-        if (!gameState.gameOver && gameState.CREATER.choice && gameState.JOINER.choice) { // Both players submitted RPS move
-            gameRef.update({
-                gameOver: true,
-            });
-            showOutcome();
-            const winner = determineWinner(gameState.CREATER.choice, gameState.JOINER.choice) // Get winner
-            if (winner === 'tie') {
-                console.log("You and your opponent tied!");
-            } else { // Update wins
-                const winnerNumCurrentWins = parseInt(gameState[winner].wins)
-                gameRef.child('/' + winner).update({
-                    wins: winnerNumCurrentWins + 1,
-                });
-                if (user.playerType === winner) {
-                    console.log("You win")
-                } else {
-                    console.log("You lose!")
-                }
+            const oppostitePlayerType = getOppositePlayerType(user.playerType)
+            if (gameState[oppostitePlayerType].choice && !gameState[user.playerType].choice) { // Opponent has chosen but player has not
+                $('#wait-for-player-choice').show();
+            } else if (!gameState[oppostitePlayerType].choice && gameState[user.playerType].choice) {
+                $('#wait-for-opponent-choice').show();
             }
-
+        } else if (gameState.gameOver) {
+            gameRef.off(); // Remove listener from game reference
         }
-    })
+    }, function (errorObject) {
+        console.log("The read failed: " + errorObject.code)
+    }
+    )
 }
 
 $('#queue').click(function () {
+    $('#queue').hide();
+    $('#waiting').show();
     // queueRef.orderByKey().limitToFirst(1).once('value', function (snapshot) {
     queueRef.orderByChild('isAvailable').equalTo(true).once('value', function (snapshot) {
         const availableGame = snapshot.val();
         if (!availableGame) { // No games in queue. Waiting for other player
             const newGame = queueRef.push( // Create a new game in lobby
                 {
-                    CREATER: { name: user.name, id: user.id, choice: '', wins: 0 },
+                    CREATER: { name: user.name, id: user.id, choice: '' },
                     isAvailable: true,
                     gameOver: false,
                 }
@@ -137,8 +191,6 @@ $('#queue').click(function () {
             user.gameId = gameRef.key
             user.playerType = playerTypes.CREATER;
 
-            $('#waiting').show();
-
         } else { // Game found. 
             // queueRef.child(Object.entries(availableGame)[0][0]).remove()// Remove from queues
             const gameKey = Object.entries(availableGame)[0][0]
@@ -146,7 +198,6 @@ $('#queue').click(function () {
                 name: user.name,
                 id: user.id,
                 choice: '',
-                wins: 0
             });
             queueRef.child(gameKey).update({
                 isAvailable: false
@@ -164,15 +215,18 @@ $('#queue').click(function () {
 
 $('.rps-button').click(function () {
     const choice = $(this).attr('data-move').toUpperCase();
+    $('#choice').show();
     $('#your-choice').text(choice);
     gameRef.child('/' + user.playerType).update({
         choice: RPS_Moves[choice],
     });
     $('#rps-buttons').hide();
-    $('#wait-for-opponent-choice').show();
 });
 
+$('#play-again').click(function () {
 
+    initElements();
+})
 
 
 
