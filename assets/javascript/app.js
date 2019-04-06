@@ -85,11 +85,11 @@ connectionsRef.once('child_added', function (connectionSnap) {
 });
 
 // Establishes connection on player change
-function trackPlayer() {
-    playerRef.on('value', function (snapshot) {
-        $('#wins').text(snapshot.val().wins);
-    });
-}
+// function trackPlayer() {
+//     playerRef.on('value', function (snapshot) {
+//         $('#wins').text(snapshot.val().wins);
+//     });
+// }
 
 function determineWinner(createrChoice, joinerChoice) {
     let outcome = playerTypes.JOINER;
@@ -148,8 +148,7 @@ function trackGame() { // Main function monitoring connection on game change
         }
     }, function (errorObject) {
         console.log("The read failed: " + errorObject.code)
-    }
-    )
+    });
 }
 
 $('#queue').click(function () {
