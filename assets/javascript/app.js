@@ -19,6 +19,11 @@ const connectedUsersRef = database.ref('.info/connected');
 let gameRef; // Ref for user's game
 let playerRef; // Ref to player
 
+
+const allChatsRef = database.ref('/chats');
+let messagesRef; // For messages of the particular game chat
+
+
 // const name = prompt("Enter your name");
 // const connection = connectionsRef.push(name);
 
@@ -33,43 +38,21 @@ const playerTypes = {
     JOINER: 'JOINER'
 }
 
+const user = {
+    name: Math.floor(Math.random() * 100),
+    id: '',
+    gameId: '',
+    playerType: '' // value is one of the playerTypes properties ("CREATER" or "JOINER")'
+}
+
+// Retrieves opposite player type.
+// Ex. getOppositePlayerType(playerTypes.CREATER) ->  playerTypes.JOINER
 function getOppositePlayerType(playerType) {
     if (playerType === playerTypes.CREATER) {
         return playerTypes.JOINER;
     }
     return playerTypes.CREATER;
 }
-
-const user = {
-    name: Math.floor(Math.random() * 100),
-    id: '',
-    gameId: '',
-    playerType: '' // either 'CREATER' or 'JOINER'
-}
-
-function initElements() {
-    $('#queue').show();
-    $('#waiting').hide();
-    $('#wait-for-opponent-choice').hide();
-    $('#wait-for-player-choice').hide();
-    $('#opponent-name').hide();
-    $('#opponent').text('');
-    $("#resolve-game").hide();
-    $('#player-name').text(user.name);
-    $('#rps-buttons').hide();
-    $('#choice').hide();
-    $('#your-choice').text('');
-}
-
-function displayGame() {
-    $('#waiting').hide();
-    $('#opponent-name').show();
-    $('#rps-buttons').show();
-}
-
-initElements();
-
-
 
 // Detect changes in user connections
 connectedUsersRef.on('value', function (snapshot) {
@@ -78,28 +61,34 @@ connectedUsersRef.on('value', function (snapshot) {
         connection.onDisconnect().remove();
     }
 }, function (errorObject) {
-    console.log("The read failed: " + errorObject.code)
+    console.log("The read failed: " + errorObject.code);
 });
 
+// Detects changes in connections directory
 connectionsRef.once('child_added', function (connectionSnap) {
     user.id = connectionSnap.key;
-    player = playersRef.push({
+    player = playersRef.push({ // Adds player to playersRef
         name: user.name,
         id: user.id,
         wins: 0
     });
     playerRef = player;
-    trackPlayer();
-    player.onDisconnect().remove()
+
+    // trackPlayer();
+
+    playerRef.on('value', function (snapshot) { // Establishes connection on player change
+        $('#wins').text(snapshot.val().wins)
+    })
+    player.onDisconnect().remove();
 }, function (errorObject) {
-    console.log("The read failed: " + errorObject.code)
+    console.log("The read failed: " + errorObject.code);
 });
 
 // Establishes connection on player change
 function trackPlayer() {
     playerRef.on('value', function (snapshot) {
-        $('#wins').text(snapshot.val().wins)
-    })
+        $('#wins').text(snapshot.val().wins);
+    });
 }
 
 function determineWinner(createrChoice, joinerChoice) {
@@ -115,21 +104,13 @@ function determineWinner(createrChoice, joinerChoice) {
     return outcome;
 }
 
-function showOutcome(opponentChoice) {
-    $('#wait-for-opponent-choice').hide();
-    $('#wait-for-player-choice').hide();
-    $('#resolve-game').show();
-    $('#opponent-choice').text(opponentChoice)
-}
-
-function trackGame() { // Set up tracking for game
+function trackGame() { // Main function monitoring connection on game change
     gameRef.on('value', function (snap) {
-        
+
         const gameState = snap.val();
 
-        if (!gameState.gameOver && gameState.CREATER.choice && gameState.JOINER.choice) { // Both players submitted RPS move
-            // console.log(gameRef)
-            // console.log(gameState)
+        if (!gameState.gameOver && gameState.CREATER.choice && gameState.JOINER.choice) { // Both players submitted RPS moves
+            // Game is now over
             gameRef.update({
                 gameOver: true,
             });
@@ -138,30 +119,28 @@ function trackGame() { // Set up tracking for game
             const winner = determineWinner(gameState.CREATER.choice, gameState.JOINER.choice) // Get winner
             if (winner === 'tie') {
                 $('#game-outcome').text("You and your opponent tied!");
-            } else { // Update wins
+            } else { // Determine who won
                 if (user.playerType === winner) {
+                    // Update wins
                     playerRef.once('value', function (snapshot) {
                         const currentWins = parseInt(snapshot.val().wins);
                         playerRef.update({
                             wins: currentWins + 1
                         })
                     })
-                    $('#game-outcome').text("You win")
+                    $('#game-outcome').text("You win");
                 } else {
-                    $('#game-outcome').text("You lose!")
+                    $('#game-outcome').text("You lose!");
                 }
             }
-        } else if (!gameState.gameOver && !gameState.isAvailable) { // Second player joined game 
-            displayGame();
-            if (user.playerType === playerTypes.CREATER) {
-                $('#opponent').text(gameState.JOINER.name)
-            } else {
-                $('#opponent').text(gameState.CREATER.name)
-            }
-            const oppostitePlayerType = getOppositePlayerType(user.playerType)
-            if (gameState[oppostitePlayerType].choice && !gameState[user.playerType].choice) { // Opponent has chosen but player has not
+        } else if (!gameState.gameOver && !gameState.isAvailable) { // Second player joined game. Game is currently in progress
+
+            const oppositePlayerType = getOppositePlayerType(user.playerType)
+            displayGame(gameState[oppositePlayerType].name);
+
+            if (gameState[oppositePlayerType].choice && !gameState[user.playerType].choice) { // Opponent has chosen but player has not
                 $('#wait-for-player-choice').show();
-            } else if (!gameState[oppostitePlayerType].choice && gameState[user.playerType].choice) {
+            } else if (!gameState[oppositePlayerType].choice && gameState[user.playerType].choice) {
                 $('#wait-for-opponent-choice').show();
             }
         } else if (gameState.gameOver) {
@@ -176,7 +155,6 @@ function trackGame() { // Set up tracking for game
 $('#queue').click(function () {
     $('#queue').hide();
     $('#waiting').show();
-    // queueRef.orderByKey().limitToFirst(1).once('value', function (snapshot) {
     queueRef.orderByChild('isAvailable').equalTo(true).once('value', function (snapshot) {
         const availableGame = snapshot.val();
         if (!availableGame) { // No games in queue. Waiting for other player
@@ -192,7 +170,6 @@ $('#queue').click(function () {
             user.playerType = playerTypes.CREATER;
 
         } else { // Game found. 
-            // queueRef.child(Object.entries(availableGame)[0][0]).remove()// Remove from queues
             const gameKey = Object.entries(availableGame)[0][0]
             queueRef.child(gameKey + '/JOINER').update({
                 name: user.name,
@@ -212,7 +189,6 @@ $('#queue').click(function () {
     })
 });
 
-
 $('.rps-button').click(function () {
     const choice = $(this).attr('data-move').toUpperCase();
     $('#choice').show();
@@ -224,114 +200,70 @@ $('.rps-button').click(function () {
 });
 
 $('#play-again').click(function () {
-
     initElements();
-})
+});
 
+$('#send-message').click(function () {
+    const messageText = $('#message-input').val();
+    $('#message-input').val('');
+    const message =
+    {
+        user: user.name,
+        message: messageText,
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+    }
+    if (!allChatsRef.child(gameRef.key)) {
+        allChatsRef.child(gameRef.key).setValue(message);
+        messagesRef = database.ref('/chats/' + gameRef.key);
+        console.log(messagesRef)
+        watchChat();
+    } else {
+        allChatsRef.child(gameRef.key).push(message);
+    }
+});
 
-
-// function hideRPS_Buttons() {
-//     $('#rps-buttons').hide();
+// function watchChat() { // Needs to be called first!!
+//     messagesRef.on('child_added', function(snapshot) {
+//         const message = snapshot.val()
+//         console.log('message', message)
+//         const messageElem = $('<div>')
+//             .append('<p>From: ' + message.user + '</p>')
+//             .append('<p>' + message.message + '</p>');
+//         $('#messages').append(messageElem);
+//     }) 
+    
 // }
 
-// $('#paper').click(function () {
-//     $('#your-choice').text('Paper')
-//     gameRef.child('/' + user.playerType).update({
-//         choice: RPS_Moves.PAPER,
-//     });
-// })
 
-// $('#scissors').click(function () {
-//     $('#your-choice').text('Scissors')
-//     gameRef.child('/' + user.playerType).update({
-//         choice: RPS_Moves.SCISSORS,
-//     });
-// })
+function initElements() {
+    $('#queue').show();
+    $('#waiting').hide();
+    $('#wait-for-opponent-choice').hide();
+    $('#wait-for-player-choice').hide();
+    $('#opponent-name').hide();
+    $('#opponent').text('');
+    $("#resolve-game").hide();
+    $('#player-name').text(user.name);
+    $('#rps-buttons').hide();
+    $('#choice').hide();
+    $('#your-choice').text('');
+}
 
+function displayGame(opponentName) {
+    $('#waiting').hide();
+    $('#opponent').text(opponentName);
+    $('#opponent-name').show();
+    $('#rps-buttons').show();
+}
 
+function showOutcome(opponentChoice) {
+    $('#wait-for-opponent-choice').hide();
+    $('#wait-for-player-choice').hide();
+    $('#resolve-game').show();
+    $('#opponent-choice').text(opponentChoice)
+}
 
-
-
-
-
-
-// connectionsRef.on('value', function (connectionSnap) {
-
-//     const numUsers = connectionSnap.numChildren();
-//     if (numUsers === 1) {
-//         console.log('Need more players. Waiting...')
-//     } else if (numUsers > 2) {
-//         console.log('Too many players');
-//     } else {
-//         console.log('playing Game')
-//         let currentGame;
-//         gameRef.on('value', function (gameSnap) {
-//             currentGame = gameSnap.val();
-//         })
-        // if (!currentGame.player1.name) {
-        //     console.log('updated player1')
-        //     gameRef.update({
-        //         'player1/name': user.name,
-        //     });
-        // } else if (!currentGame.player2.name) {
-        //     console.log('updated player2')
-        //     gameRef.update({
-        //         'player2/name': user.name,
-        //     })
-        // }
-//         console.log(currentGame)
-//     }
-// });
-
-
-
-
-
-
-
-
-
-// queueRef.orderByKey().limitToFirst(2).on('value', function (snapshot) {
-//     const data = snapshot.val();
-//     console.log(data)
-//     if (!data) {
-//         return;
-//     } else if (Object.values(data).length == 1) {
-//         return
-//     } else { // Remove from queue and start game
-
-
-//         const players = Object.values(data)
-//         console.log(players)
-//         let foundGame = false;
-//         for (let i = 0; i < players.length; i++) {
-//             console.log(players[i], user.id)
-//             if (players[i] === user.id) {
-//                 foundGame = true;
-//             }
-//         }
-//         if (foundGame) {
-//             const game = gamesRef.push({
-//                 player1: {
-//                     name: players[0],
-//                     choice: '',
-//                     wins: '',
-//                 },
-//                 player2: {
-//                     name: players[1],
-//                     choice: '',
-//                     wins: ''
-//                 }
-//             });
-//             user.gameId = game.key;
-//         }
-//     }
-// })
-
-
-
-
-
+initElements();
 
 
 

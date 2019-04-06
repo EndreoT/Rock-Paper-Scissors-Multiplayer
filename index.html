@@ -14,25 +14,44 @@
 </head>
 
 <body>
-    <h1>Hello <span id="player-name"></span></h1>
-    <h1>Wins <span id="wins"></span></h1>
-    <button type="button" id="queue">Add to Queue</button>
+    <div class="container">
+        <h1>Hello <span id="player-name"></span></h1>
+        <h1>Wins <span id="wins"></span></h1>
+        <button type="button" id="queue">Add to Queue</button>
 
-    <h1 id="waiting">Currently waiting for another player to join...</h1>
-    <h1 id="opponent-name">Your opponent is: <span id='opponent'></span></h1>
-    <h1 id="choice">You choose: <span id="your-choice"></span></h1>
-    <div id="rps-buttons">
-        <button class="rps-button" type='button' data-move="rock">Rock</button>
-        <button class="rps-button" type='button' data-move="paper">Paper</button>
-        <button class="rps-button" type='button' data-move="scissors">Scissors</button>
+        <h1 id="waiting">Currently waiting for another player to join...</h1>
+        <div class="row">
+            <div id="game-info" class="col-md-6">
+                <h1 id="opponent-name">Your opponent is: <span id='opponent'></span></h1>
+                <h1 id="choice">You choose: <span id="your-choice"></span></h1>
+                <div id="rps-buttons">
+                    <button class="rps-button" type='button' data-move="rock">Rock</button>
+                    <button class="rps-button" type='button' data-move="paper">Paper</button>
+                    <button class="rps-button" type='button' data-move="scissors">Scissors</button>
+                </div>
+                <h1 id="wait-for-opponent-choice">Waiting for opponent's choice...</h1>
+                <h1 id="wait-for-player-choice">Waiting for your choice...</h1>
+                <div id="resolve-game">
+                    <h1>Your opponent chooses: <span id="opponent-choice"></span></h1>
+                    <h1 id="game-outcome"></h1>
+                    <button id="play-again" type='button'>Play Again</button>
+                </div>
+            </div>
+
+            <div id="messages-col" class="col-md-6">
+                <!-- Messages will be dynamically inserted -->
+                <div id="messages"></div>
+                <form>
+                    <input id="message-input" type="text">
+                </form>
+                <button id="send-message">Send message!</button>
+            </div>
+
+        </div>
+
+
     </div>
-    <h1 id="wait-for-opponent-choice">Waiting for opponent's choice...</h1>
-    <h1 id="wait-for-player-choice">Waiting for your choice...</h1>
-    <div id="resolve-game">
-        <h1>Your opponent chooses: <span id="opponent-choice"></span></h1>
-        <h1 id="game-outcome"></h1>
-        <button id="play-again" type='button'>Play Again</button>
-    </div>
+
 
     <!-- Optional JavaScript -->
     <!-- jQuery first, then Popper.js, then Bootstrap JS -->
