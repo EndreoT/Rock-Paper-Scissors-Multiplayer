@@ -27,33 +27,36 @@ firebase.initializeApp(config);
 
 const database = firebase.database();
 
+const connectedUsersRef = database.ref('.info/connected');
 const gamesRef = database.ref('/game');
 const queueRef = database.ref('/queue');
 const playersRef = database.ref('/players');
 const connectionsRef = database.ref('/connections');
-const connectedUsersRef = database.ref('.info/connected');
+const allChatsRef = database.ref('/chats');
 let gameRef; // Ref for user's game
 let playerRef; // Ref to player
+let opponentRefCon; // Ref to opponent connection only
 let opponentRef;
-
-const allChatsRef = database.ref('/chats');
 let messagesRef; // For messages of the particular game chat
 
 
 // const name = prompt("Enter your name"); // Use modal instead
 // const connection = connectionsRef.push(name);
 
+// Enum for rock paper scissors allowed moves
 const RPS_Moves = {
     ROCK: 'ROCK',
     PAPER: 'PAPER',
     SCISSORS: 'SCISSORS'
 }
 
+// Enum for types of players
 const playerTypes = {
     CREATER: 'CREATER',
     JOINER: 'JOINER'
 }
 
+// Player info
 const user = {
     name: Math.floor(Math.random() * 100),
     id: '',
@@ -85,22 +88,42 @@ connectedUsersRef.on('value', function (snapshot) {
 // Event listener must be .once instead of .on otherwise both clients push the same player into /connections
 connectionsRef.once('child_added', function (connectionSnap) {
     user.id = connectionSnap.key;
+
     // Adds player to playersRef
-    player = playersRef.push({
+    playersRef.child(user.id).set({
         name: user.name,
         id: user.id,
         wins: 0
     });
-    playerRef = player;
+    playerRef = playersRef.child(user.id);
 
     // Establishes connection on player change
     playerRef.on('value', function (snapshot) {
         $('#wins').text(snapshot.val().wins)
     });
-    player.onDisconnect().remove();
+    playerRef.onDisconnect().remove();
 }, function (errorObject) {
     console.log("The read failed: " + errorObject.code);
 });
+
+function trackOpponentConnection() {
+    opponentRefCon.on('value', function (snapshot) {
+        console.log('opponent DC')
+    })
+}
+
+// Watches changes in chat exchange between the two players
+function trackChat() {
+    messagesRef.on('child_added', function (snapshot) {
+        const message = snapshot.val();
+
+        const messageElem = $('<li class="list-group-item">')
+            .append('<p><strong>' + message.user + ': </strong>' + message.message + '</p>');
+        const allMessagesElem = $('#messages');
+        allMessagesElem.append(messageElem);
+        allMessagesElem.scrollTop($('#messages').prop("scrollHeight"));
+    });
+}
 
 function determineWinner(createrChoice, joinerChoice) {
     let outcome = playerTypes.JOINER;
@@ -148,10 +171,14 @@ function trackGame() { // Main function monitoring on game change
             }
             // Check if second player has joined game
         } else if (!gameState.gameOver && !gameState.isAvailable) {
+    
+            const oppositePlayerType = getOppositePlayerType(user.playerType);
 
-            // Show game in client
-            const oppositePlayerType = getOppositePlayerType(user.playerType)
-            displayGame(gameState[oppositePlayerType].name);
+             // Show game in client
+            playersRef.orderByChild('id').equalTo(gameState[oppositePlayerType].id).once('value', function (snap) {
+                opponentWins = Object.entries(snap.val())[0][1].wins;
+                displayGame(gameState[oppositePlayerType].name, opponentWins);
+            });
 
             // Check if opponent has chosen RPS move but player has not
             if (gameState[oppositePlayerType].choice && !gameState[user.playerType].choice) {
@@ -160,11 +187,6 @@ function trackGame() { // Main function monitoring on game change
             } else if (!gameState[oppositePlayerType].choice && gameState[user.playerType].choice) {
                 $('#wait-for-opponent-choice').show();
             }
-        } else if (gameState.gameOver) {
-            // Remove listener from game reference
-            gameRef.off();
-            messagesRef.off();
-            opponentRef.off();
         }
     }, function (errorObject) {
         console.log("The read failed: " + errorObject.code);
@@ -178,7 +200,7 @@ function createGame(gameInfo) {
         gameInfo
     );
     gameRef = newGame;
-    user.gameId = gameRef.key
+    user.gameId = gameRef.key;
     user.playerType = playerTypes.CREATER;
 }
 
@@ -186,6 +208,7 @@ function createGame(gameInfo) {
 function joinGame(gameKey, joinerInfo) {
     // Add joiner info
     queueRef.child(gameKey + '/JOINER').update(joinerInfo);
+
     // Game is in progress and is no longer available to be joined
     queueRef.child(gameKey).update({
         isAvailable: false
@@ -195,27 +218,45 @@ function joinGame(gameKey, joinerInfo) {
     user.playerType = playerTypes.JOINER;
 }
 
-function trackOpponentConnection() {
-    opponentRef.on('value', function (snapshot) {
-        console.log('opponent DC')
+function trackOpponentChange() {
+    opponentRef.on('value', function(snap) {
+        console.log('opponent', snap.val())
     })
 }
 
+function listenForPlayerToJoinGame() {
+    stuff = gameRef.child('/JOINER')
+    stuff.on('value', function(snap) {
+        const joiner = snap.val()
+        if (!(joiner.name === '')) {
+            // Only need to listen until other player joins game
+            stuff.off()
+
+            opponentRef = playersRef.child('/' + joiner.id)   
+            trackOpponentChange();             
+        } 
+    });
+}
+
+// Handle queue up for a game
 $('#queue').click(function () {
     $('#queue').hide();
     $('#waiting').show();
+
+    // Find all available games in queue if any exist
     queueRef.orderByChild('isAvailable').equalTo(true).once('value', function (snapshot) {
         const availableGame = snapshot.val();
-        if (!availableGame) { // No games in queue. Waiting for other player
+        if (!availableGame) { // No games available in queue. Create game and wait for another player to join
             createGame(
                 {
                     CREATER: { name: user.name, id: user.id, choice: '' },
+                    JOINER: { name: '', id: '', choice: '' },
                     isAvailable: true,
                     gameOver: false,
                     timestamp: firebase.database.ServerValue.TIMESTAMP,
                 }
             );
-        } else { // Game found. 
+        } else { // Available game exists. Join game
             const gameKey = Object.entries(availableGame)[0][0];
             joinGame(gameKey, {
                 name: user.name,
@@ -224,17 +265,23 @@ $('#queue').click(function () {
             });
         }
         const opponentType = getOppositePlayerType(user.playerType);
+
+        // const opponentName = availableGame[opponentType].name;
+
+        // Track opponent connection 
         gameRef.once('value', function (snapshot) {
             const opponentId = snapshot.val()[opponentType].id;
-            // Track opponent connection
-            opponentRef = connectionsRef.child('/' + opponentId)
+            opponentRefCon = connectionsRef.child('/' + opponentId)
             trackOpponentConnection();
         });
+
         // Create first message greeting
         if (user.playerType === playerTypes.CREATER) {
+
             const message = {
                 user: 'ChatBot',
-                message: 'The is the beginning of the chat between you and your opponenet',
+                // message: 'The is the beginning of the chat between you and ' + opponentName,
+                message: 'The is the beginning of the chat between you and ',
                 timestamp: firebase.database.ServerValue.TIMESTAMP,
             }
             allChatsRef.child(gameRef.key).push(message);
@@ -247,6 +294,9 @@ $('#queue').click(function () {
 
         // Track changes in game
         trackGame();
+
+        listenForPlayerToJoinGame()
+
     }, function (error) {
         console.log(error)
     });
@@ -264,12 +314,18 @@ $('.rps-button').click(function () {
 });
 
 $('#play-again').click(function () {
+
+    // Remove listener references for the game just finished
+    gameRef.off();
+    messagesRef.off();
+    opponentRefCon.off();
+    opponentRef.off();
+
     $('#messages').empty();
     initElements();
 });
 
 $('#send-message').click(function (event) {
-    console.log('sent message once')
     const messageText = $('#message-input').val().trim();
     if (!messageText.length) {
         $('#message-empty').show();
@@ -283,52 +339,17 @@ $('#send-message').click(function (event) {
         message: messageText,
         timestamp: firebase.database.ServerValue.TIMESTAMP,
     }
-    // if (!allChatsRef.child(gameRef.key)) {
-    // allChatsRef.child(gameRef.key).once('value', function (snapshot) {
-    //     if (!snapshot.val()) {
-    //         allChatsRef.child(gameRef.key).push(message);
-    //     } else {
-    // Messages for game exits, push message
-    // messagesRef.push(message);
-    // allChatsRef.child(gameRef.key).push(message);
-    // }
-    // })
-    // If no chat messages for game exists, create message child with game key as id and add new message
-    //     allChatsRef.child(gameRef.key).setValue(message);
-
-    //     // Assign reference to only the chat for this specific game
-    //     messagesRef = allChatsRef.child(gameRef.key);
-    //     trackChat();
-
-    // } else {
-    //     // Messages for game exits, push message
-
     messagesRef.push(message);
-
-    //     // allChatsRef.child(gameRef.key).push(message);
-    // }
 });
-
-function trackChat() {
-    messagesRef.on('child_added', function (snapshot) {
-        const message = snapshot.val()
-        console.log(message)
-
-        const messageElem = $('<li class="list-group-item">')
-            .append('<p><strong>' + message.user + ': </strong>' + message.message + '</p>')
-        const allMessagesElem = $('#messages');
-        allMessagesElem.append(messageElem);
-        allMessagesElem.scrollTop($('#messages').prop("scrollHeight"));
-    });
-}
 
 function initElements() {
     $('#queue').show();
     $('#waiting').hide();
     $('#wait-for-opponent-choice').hide();
     $('#wait-for-player-choice').hide();
-    $('#opponent-name').hide();
+    $('#game-info').hide();
     $('#opponent').text('');
+    $('#opponent-wins').text('');
     $("#resolve-game").hide();
     $('#player-name').text(user.name);
     $('#rps-buttons').hide();
@@ -338,10 +359,11 @@ function initElements() {
     $('#message-empty').hide();
 }
 
-function displayGame(opponentName) {
+function displayGame(opponentName, opponentWins) {
     $('#waiting').hide();
+    $('#game-info').show();
     $('#opponent').text(opponentName);
-    $('#opponent-name').show();
+    $('#opponent-wins').text(opponentWins);
     $('#rps-buttons').show();
     $('#messages-col').show();
 }
@@ -350,7 +372,7 @@ function showOutcome(opponentChoice) {
     $('#wait-for-opponent-choice').hide();
     $('#wait-for-player-choice').hide();
     $('#resolve-game').show();
-    $('#opponent-choice').text(opponentChoice)
+    $('#opponent-choice').text(opponentChoice);
 }
 
 initElements();
