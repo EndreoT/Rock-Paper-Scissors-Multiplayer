@@ -9,27 +9,77 @@
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
         integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="./assets/css/style.css">
 
-    <title>Hello, world!</title>
+    <title>Rock Paper Scissors Firebase Multiplayer Game</title>
 </head>
 
 <body>
-    <h1>Hello, world!</h1>
-    <button type="button" id="queue">Add to Queue</button>
+    <header class="container text-center">
+        <h1>Rock Paper Scissors Firebase Multiplayer Game</h1>
+        <h3>The somewhat antagonistic version</h3>
+        <!-- <h1>Play Rock Paper Scissors with a Rando!</h1> -->
+    </header>
+    <div class="container">
+        <h2>Hello <span id="player-name"></span></h2>
+        <h3>Current Wins: <span id="wins"></span></h3>
+        <button type="button" id="queue" class="btn btn-primary">Find a game</button>
 
-    <h1 id="waiting">Currently waiting for another player to join...</h1>
+        <h2 id="waiting">Waiting for another player to join... </h2>
+        <div class="row justify-content-center">
+            <div id="game-info" class="col-md-6">
+                <h1 id="opponent-name">Your opponent is: <span id='opponent'></span></h1>
+                <h1 id="choice">You choose: <span id="your-choice"></span></h1>
+                <div id="rps-buttons">
+                    <button class="btn btn-success rps-button" type='button' data-move="rock">Rock</button>
+                    <button class="btn btn-danger rps-button" type='button' data-move="paper">Paper</button>
+                    <button class="btn btn-warning rps-button" type='button' data-move="scissors">Scissors</button>
+                </div>
+                <h1 id="wait-for-opponent-choice">Waiting for opponent's choice...</h1>
+                <h1 id="wait-for-player-choice">Waiting for your choice...</h1>
+                <div id="resolve-game">
+                    <h1>Your opponent chooses: <span id="opponent-choice"></span></h1>
+                    <h1 id="game-outcome"></h1>
+                    <button id="play-again" type='button'>Play Again</button>
+                </div>
+            </div>
 
-    <div id='game-content'>
-        <h1>Opponent: <span id='opponent'></span></h1>
-        <h1>Your choice: <span id="your-choice"></span></h1>
-        <div id="rps-buttons">
-            <button class="rps-button" type='button' data-move="rock">Rock</button>
-            <button class="rps-button" type='button' data-move="paper">Paper</button>
-            <button class="rps-button" type='button' data-move="scissors">Scissors</button>
+            <div id="messages-col" class="col-md-6">
+
+                <!-- Messages-->
+                <div id="chatbox" class="card">
+                    <div class="card">
+                        <div class="card-header">Chat</div>
+                        <div class="card-body">
+
+                            <!-- Messages will be dynamically inserted -->
+                            <ul id="messages" class="list-group"></ul>
+                            <hr>
+                            <form id="sendMessage" method="post">
+                                <div class='input-group'>
+                                    <input id="message-input" type='text' name='message' class="form-control"
+                                        placeholder="Flame your opponent here">
+                                    <div class='input-group-append'>
+                                        <button id="send-message" class='btn btn-primary' type="button">Send</button>
+                                    </div>
+                                </div>
+                            </form>
+                            <div id="message-empty" class="alert alert-warning" role="alert">
+                                Message must contain characters.
+                            </div>
+                            <hr>
+                            <h3>Insult ideas</h3>
+                            <ul>
+                                <li>"May every empty parking spot you see actually contain a motorcycle."</li>
+                                <li>"May you step barefoot on a Lego."</li>
+                                <li>"Your mother was a hamster and your father smells of elderberries."</li>
+                                <li>"What's taking so long? You only have three choices..."</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-
-        <h1 id="wait-for-opponent-choice">Waiting for opponent's choice...</h1>
-        <h1>Opponent's choice: <span id="opponent-choice"></span></h1>
     </div>
 
     <!-- Optional JavaScript -->

@@ -24,7 +24,7 @@ const allChatsRef = database.ref('/chats');
 let messagesRef; // For messages of the particular game chat
 
 
-// const name = prompt("Enter your name");
+// const name = prompt("Enter your name"); // Use modal instead
 // const connection = connectionsRef.push(name);
 
 const RPS_Moves = {
@@ -135,6 +135,12 @@ function trackGame() { // Main function monitoring connection on game change
             }
         } else if (!gameState.gameOver && !gameState.isAvailable) { // Second player joined game. Game is currently in progress
 
+            // Track messages for only one game
+            messagesRef = database.ref('/chats/' + gameRef.key); 
+
+            trackChat();
+
+            // Show game in client
             const oppositePlayerType = getOppositePlayerType(user.playerType)
             displayGame(gameState[oppositePlayerType].name);
 
@@ -151,41 +157,50 @@ function trackGame() { // Main function monitoring connection on game change
     });
 }
 
+function createGame(gameInfo) {
+    const newGame = queueRef.push( // Create a new game in lobby
+        gameInfo
+    );
+    gameRef = newGame;
+    user.gameId = gameRef.key
+    user.playerType = playerTypes.CREATER;
+}
+
+function joinGame(gameKey, joinerInfo) {
+    queueRef.child(gameKey + '/JOINER').update(joinerInfo);
+    queueRef.child(gameKey).update({
+        isAvailable: false
+    });
+    gameRef = database.ref('/queue/' + gameKey);
+    user.gameId = gameKey;
+    user.playerType = playerTypes.JOINER;
+}
+
 $('#queue').click(function () {
     $('#queue').hide();
     $('#waiting').show();
     queueRef.orderByChild('isAvailable').equalTo(true).once('value', function (snapshot) {
         const availableGame = snapshot.val();
         if (!availableGame) { // No games in queue. Waiting for other player
-            const newGame = queueRef.push( // Create a new game in lobby
+            createGame(
                 {
                     CREATER: { name: user.name, id: user.id, choice: '' },
                     isAvailable: true,
                     gameOver: false,
                 }
             );
-            gameRef = newGame;
-            user.gameId = gameRef.key
-            user.playerType = playerTypes.CREATER;
-
         } else { // Game found. 
-            const gameKey = Object.entries(availableGame)[0][0]
-            queueRef.child(gameKey + '/JOINER').update({
+            const gameKey = Object.entries(availableGame)[0][0];
+            joinGame(gameKey, {
                 name: user.name,
                 id: user.id,
                 choice: '',
             });
-            queueRef.child(gameKey).update({
-                isAvailable: false
-            });
-            gameRef = database.ref('/queue/' + gameKey);
-            user.gameId = gameKey;
-            user.playerType = playerTypes.JOINER;
         }
         trackGame();
     }, function (error) {
         console.log(error)
-    })
+    });
 });
 
 $('.rps-button').click(function () {
@@ -199,40 +214,43 @@ $('.rps-button').click(function () {
 });
 
 $('#play-again').click(function () {
+    $('#messages').empty();
     initElements();
 });
 
-$('#send-message').click(function () {
-    const messageText = $('#message-input').val();
+$('#send-message').click(function (event) {
+    const messageText = $('#message-input').val().trim();
+    if (!messageText.length) {
+        $('#message-empty').show();
+        event.stopPropagation();
+        return;
+    }
+    $('#message-empty').hide();
     $('#message-input').val('');
-    const message =
-    {
+    const message = {
         user: user.name,
         message: messageText,
         timestamp: firebase.database.ServerValue.TIMESTAMP,
     }
     if (!allChatsRef.child(gameRef.key)) {
+        // If no chat messages for game exists, create message child with game key as id and add message
         allChatsRef.child(gameRef.key).setValue(message);
-        messagesRef = database.ref('/chats/' + gameRef.key);
-        console.log(messagesRef)
-        watchChat();
-    } else {
+    } else { 
+        // Messages for game exits, push message
         allChatsRef.child(gameRef.key).push(message);
     }
 });
 
-// function watchChat() { // Needs to be called first!!
-//     messagesRef.on('child_added', function(snapshot) {
-//         const message = snapshot.val()
-//         console.log('message', message)
-//         const messageElem = $('<div>')
-//             .append('<p>From: ' + message.user + '</p>')
-//             .append('<p>' + message.message + '</p>');
-//         $('#messages').append(messageElem);
-//     }) 
-    
-// }
-
+function trackChat() { // Needs to be called first!!
+    messagesRef.on('child_added', function (snapshot) {
+        const message = snapshot.val()
+        const messageElem = $('<li class="list-group-item">')
+            .append('<p><strong>' + message.user + ': </strong>' + message.message + '</p>')
+        const allMessagesElem = $('#messages');
+        allMessagesElem.append(messageElem);
+        allMessagesElem.scrollTop($('#messages').prop("scrollHeight"));
+    });
+}
 
 function initElements() {
     $('#queue').show();
@@ -246,6 +264,8 @@ function initElements() {
     $('#rps-buttons').hide();
     $('#choice').hide();
     $('#your-choice').text('');
+    $('#messages-col').hide();
+    $('#message-empty').hide();
 }
 
 function displayGame(opponentName) {
@@ -253,6 +273,7 @@ function displayGame(opponentName) {
     $('#opponent').text(opponentName);
     $('#opponent-name').show();
     $('#rps-buttons').show();
+    $('#messages-col').show();
 }
 
 function showOutcome(opponentChoice) {
@@ -263,60 +284,3 @@ function showOutcome(opponentChoice) {
 }
 
 initElements();
-
-
-
-
-
-
-
-
-// dataRef.child("alanisawesome").set({
-//     date_of_birth: "June 23, 1912",
-//     full_name: "Alan Turing"
-// });
-// dataRef.child("gracehop").set({
-//     date_of_birth: "December 9, 1906",
-//     full_name: "Grace Hopper"
-// });
-
-// dataRef.push({
-//     x: {
-//         date_of_birth: "December 9, 1906",
-//         full_name: "Grace Hopper"
-//       }
-//   });
-
-// var hopperRef = dataRef.child("gracehop");
-// hopperRef.update({
-//   "nickname": "Amazing Grace"
-// });
-// dataRef.update({
-//     "alanisawesome/nickname": "Alan The Machine",
-//     "gracehop/nickname": "Amazing Grace"
-//   });
-
-// database.ref('/new').child('lambeosaurus').push({
-//     "height" : 2.1,
-//     "length" : 12.5,
-//     "weight": 5000
-//   });
-
-// const newRef = database.ref('/new')
-
-// newRef.once('value', function (snap) {
-//     newRef.child('lambeosaurus').set({
-//         "height": 2.1,
-//         "length": 12.5,
-//         "weight": 5000
-//     });
-//     newRef.child('stego').set({
-//         "height": 4,
-//         "length": 9,
-//         "weight": 2500
-//     });
-// })
-
-// newRef.orderByChild("length").on("child_added", function(snapshot) {
-//     console.log(snapshot.key + " was " + snapshot.val().height + " meters tall");
-//   });
