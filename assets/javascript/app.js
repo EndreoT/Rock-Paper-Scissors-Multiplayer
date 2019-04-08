@@ -4,6 +4,11 @@
 // trigger messagesRef.on listener. Yikes
 // - Changing a node inside an event listener listening on that same node will produce an infinite loop
 
+
+// TODO: Delete game and game chats on game finish **************
+
+
+
 // Initialize Firebase
 var config = {
     apiKey: "AIzaSyB6CoZeUG93nUg_Ae3lRQrvmtTXzeJsCT8",
@@ -56,8 +61,8 @@ const playerTypes = {
 
 // Player info
 const user = {
-    // name: Math.floor(Math.random() * 100),
-    name: '',
+    name: Math.floor(Math.random() * 100),
+    // name: '',
     id: '',
     gameId: '',
     playerType: '' // value is one of the playerTypes properties ("CREATER" or "JOINER")'
@@ -65,8 +70,8 @@ const user = {
 
 // Get user name from input
 // ****************************
-const name = prompt("Enter your name"); // Use modal instead **********************
-user.name = name
+// const name = prompt("Enter your name"); // Use modal instead **********************
+// user.name = name
 // ****************************
 
 
