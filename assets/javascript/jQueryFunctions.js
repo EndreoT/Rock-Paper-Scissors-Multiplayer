@@ -16,17 +16,13 @@ function initElements(userName) {
     $('#waiting').hide();
     $('#wait-for-opponent-choice').hide();
     $('#wait-for-player-choice').hide();
-    // $('#opponent-choice').hide();
-    // $('#opponent-choice-val').text('');
     $('#opponent-info').hide();
     $('#opponent').text('');
     $('#opponent-wins').text('');
-    $("#resolve-game").hide();
     $("#play-again").hide();
     $('#player-name').text(userName);
     $('#rps-buttons').hide();
     $('#choice').hide();
-    // $('#your-choice').text('');
 
     $('#your-choice').attr('src', '');
     $('#opponent-choice').attr('src', '');
@@ -35,6 +31,7 @@ function initElements(userName) {
     $('#message-empty').hide();
     $('#disconnect-message').hide();
     $('#countdown').text('');
+    $('#game-outcome').text('');
 }
 
 function displayGame(opponentName) {
@@ -52,11 +49,7 @@ function hideWaitingForPlayerMessage() {
 }
 
 function displayGameOutcome(opponentChoice) {
-    // $('#opponent-choice').show();
-    $('#resolve-game').show();
+    $('#game-outcome').show();
     $("#play-again").show();
-    // $('#opponent-choice-val').text(opponentChoice);
-
     $('#opponent-choice').attr('src', opponentChoice);
 }
-

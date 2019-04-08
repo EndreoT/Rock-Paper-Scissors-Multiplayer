@@ -37,3 +37,16 @@ header {
     height: 150px;
     width: auto;
 }
+
+#rps-buttons {
+    height: 100%;
+}
+
+.rps-button {
+    width: 30%;
+    height: 100%;
+}
+
+#game-outcome {
+    color: white;
+}
