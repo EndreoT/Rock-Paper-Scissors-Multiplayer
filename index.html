@@ -21,8 +21,9 @@
         <!-- <h1>Play Rock Paper Scissors with a Rando!</h1> -->
     </header>
     <div class="container">
-        <h2>Hello <span id="player-name"></span></h2>
-        <h3>Current Wins: <span id="wins"></span></h3>
+        <h2>Hello: <span id="player-name"></span></h2>
+        <h3>Number of wins: <span id="wins"></span></h3>
+        <h3>Number of losses: <span id="losses"></span></h3>
         <button type="button" id="queue" class="btn btn-primary">Find a game</button>
 
         <h2 id="waiting">Waiting for another player to join... </h2>
@@ -30,14 +31,20 @@
             <div id="game-info" class="col-md-6">
                 <h2 id="opponent-name">Your opponent is: <span id='opponent'></span></h2>
                 <h3>Opponent's wins: <span id='opponent-wins'></span></h3>
+                <h3>Opponent's losses: <span id='opponent-losses'></span></h3>
                 <h2 id="choice">You choose: <span id="your-choice"></span></h2>
+
                 <div id="rps-buttons">
                     <button class="btn btn-success rps-button" type='button' data-move="rock">Rock</button>
                     <button class="btn btn-danger rps-button" type='button' data-move="paper">Paper</button>
                     <button class="btn btn-warning rps-button" type='button' data-move="scissors">Scissors</button>
                 </div>
-                <h1 id="wait-for-opponent-choice">Waiting for opponent's choice...</h1>
-                <h1 id="wait-for-player-choice">Waiting for your choice...</h1>
+
+                <h2 id="wait-for-opponent-choice">Waiting for opponent's choice...</h2>
+                <h2 id="wait-for-player-choice">Waiting for your choice...</h2>
+
+                <h2 id='countdown'></h2>
+
                 <div id="resolve-game">
                     <h1>Your opponent chooses: <span id="opponent-choice"></span></h1>
                     <h1 id="game-outcome"></h1>               

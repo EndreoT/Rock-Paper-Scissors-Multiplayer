@@ -84,33 +84,21 @@ connectionsRef.once('child_added', function (connectionSnap) {
     playersRef.child(user.id).set({
         name: user.name,
         id: user.id,
-        wins: 0
+        wins: 0,
+        losses: 0
     });
     playerRef = playersRef.child(user.id);
 
     // Establishes connection on player change
     playerRef.on('value', function (snapshot) {
-        $('#wins').text(snapshot.val().wins)
+        $('#wins').text(snapshot.val().wins);
+        $('#losses').text(snapshot.val().losses);
     });
-
-    // playerRef.onDisconnect().remove();
+    playerRef.onDisconnect().remove();
 
 }, function (errorObject) {
     console.log("The read failed: " + errorObject.code);
 });
-
-// Monitors if opponent disconnects
-function trackOpponentConnection() {
-    opponentRefCon.on('value', () => {
-        if (opponentDC) {
-            // If DC, allow player to find new game
-            $('#rps-buttons').hide();
-            $('#disconnect-message').show();
-            $('#play-again').show();
-        }
-        opponentDC = true
-    })
-}
 
 // Watches changes in chat exchange between the two players
 function trackChat() {
@@ -138,6 +126,37 @@ function determineWinner(createrChoice, joinerChoice) {
     return outcome;
 }
 
+function showEndGame(createrChoice, joinerChoice, opponentChoice) {
+    
+
+    displayGameOutcome(opponentChoice);
+
+    // Get string indicating if tie or win/loss
+    const winner = determineWinner(createrChoice, joinerChoice)
+    if (winner === 'tie') {
+        $('#game-outcome').text("You and your opponent tied!");
+    } else { // Determine who won
+        playerRef.once('value', function (snapshot) {
+            const playerInfo = snapshot.val();
+            if (user.playerType === winner) {
+                // Update wins
+                const currentWins = parseInt(playerInfo.wins);
+                playerRef.update({
+                    wins: currentWins + 1
+                });
+                $('#game-outcome').text("You win!");
+            } else {
+                // Update losses
+                const currentLosses = parseInt(playerInfo.losses);
+                playerRef.update({
+                    losses: currentLosses + 1
+                });
+                $('#game-outcome').text("You lose!");
+            }
+        });
+    }
+}
+
 function trackGame() { // Main function monitoring on game change
     gameRef.on('value', function (snap) {
 
@@ -150,25 +169,24 @@ function trackGame() { // Main function monitoring on game change
                 gameOver: true,
             });
             const oppostitePlayerType = getOppositePlayerType(user.playerType)
-            showOutcome(gameState[oppostitePlayerType].choice);
-            // Get string indicating tie or winner
-            const winner = determineWinner(gameState.CREATER.choice, gameState.JOINER.choice)
-            if (winner === 'tie') {
-                $('#game-outcome').text("You and your opponent tied!");
-            } else { // Determine who won
-                if (user.playerType === winner) {
-                    // Update wins
-                    playerRef.once('value', function (snapshot) {
-                        const currentWins = parseInt(snapshot.val().wins);
-                        playerRef.update({
-                            wins: currentWins + 1
-                        })
-                    })
-                    $('#game-outcome').text("You win!");
-                } else {
-                    $('#game-outcome').text("You lose!");
-                }
-            }
+            const opponentChoice = gameState[oppostitePlayerType].choice
+
+            // Rock...Paper...Scissors...!
+            setTimeout(function() {
+                $('#countdown').show();
+                $('#countdown').text('ROCK!');
+            }, 0)
+            setTimeout(function() {
+                $('#countdown').text('PAPER!');
+            }, 1000)
+            setTimeout(function() {
+                $('#countdown').text('SCISSORS!');
+            }, 2000)
+            setTimeout(function () {
+                $('#countdown').text('');
+                showEndGame(gameState.CREATER.choice, gameState.JOINER.choice, opponentChoice)
+            }, 3000)
+
             // Check if second player has joined game
         } else if (!gameState.gameOver && !gameState.isAvailable) {
 
@@ -212,10 +230,27 @@ function joinGame(gameKey, joinerInfo) {
     user.playerType = playerTypes.JOINER;
 }
 
+// Monitors if opponent disconnects
+function trackOpponentConnection() {
+    opponentRefCon.on('value', () => {
+        // Boolean check needed because .on fires at start of game
+        if (opponentDC) {
+            opponentRef.off();
+            // If DC, allow player to find new game
+            $('#rps-buttons').hide();
+            $('#disconnect-message').show();
+            $('#play-again').show();
+        }
+        opponentDC = true
+    })
+}
+
+// Tracks changes in /players/<opponent id> node 
 function trackOpponentChange() {
     opponentRef.on('value', function (snap) {
-        // Updates opponent's wins after game conclusion
+        // Updates opponent's wins after change in opponent node
         $('#opponent-wins').text(snap.val().wins);
+        $('#opponent-losses').text(snap.val().losses);
     });
 }
 
@@ -244,22 +279,19 @@ function listenForSecondPlayerToJoinGame() {
             trackChat();
 
             const opponentType = getOppositePlayerType(user.playerType);
-            const opponentId = gameState[opponentType].id;
+            const opponent = gameState[opponentType]
+
+            opponentRef = playersRef.child('/' + opponent.id);
 
             // Track changes in opponent's connection to Firebase
-            opponentRefCon = connectionsRef.child('/' + opponentId)
+            opponentRefCon = connectionsRef.child('/' + opponent.id)
             trackOpponentConnection();
-
-            // Track changes in opponent's wins
-            opponentRef = playersRef.child('/' + opponentId);
-
-            // Show game in client
-            playersRef.orderByChild('id').equalTo(gameState[opponentType].id).once('value', function (snap) {
-                displayGame(gameState[opponentType].name);
-            });
 
             // Set up tracking for on opponent value change
             trackOpponentChange();
+
+            // Show game in client
+            displayGame(opponent.name);
         }
     });
 }
@@ -324,6 +356,9 @@ $('#play-again').click(function () {
     opponentRef.off();
     opponentDC = false;
 
+    user.gameId = '';
+    user.playerType = '';
+
     // reset display
     $('#messages').empty();
     initElements();
@@ -364,6 +399,7 @@ function initElements() {
     $('#messages-col').hide();
     $('#message-empty').hide();
     $('#disconnect-message').hide();
+    $('#countdown').text('');
 }
 
 function displayGame(opponentName) {
@@ -375,7 +411,7 @@ function displayGame(opponentName) {
     $('#messages-col').show();
 }
 
-function showOutcome(opponentChoice) {
+function displayGameOutcome(opponentChoice) {
     $('#wait-for-opponent-choice').hide();
     $('#wait-for-player-choice').hide();
     $('#resolve-game').show();
