@@ -18,73 +18,117 @@
     <header class="container text-center">
         <h1>Rock Paper Scissors Firebase Multiplayer Game</h1>
         <h3>The somewhat antagonistic version</h3>
-        <!-- <h1>Play Rock Paper Scissors with a Rando!</h1> -->
     </header>
+
     <div class="container">
-        <h2>Hello: <span id="player-name"></span></h2>
-        <h3>Number of wins: <span id="wins"></span></h3>
-        <h3>Number of losses: <span id="losses"></span></h3>
-        <button type="button" id="queue" class="btn btn-primary">Find a game</button>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card bg-light mb-3">
+                    <div class="card-header text-center">
+                        <h3 id="player-name"></h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 win-loss">
+                                <h3>Wins: <span id="wins"></span></h3>
+                                <h3>Losses: <span id="losses"></span></h3>
+                            </div>
+                            <div class="col-md-6">
+                                <img id="your-choice" class="rps-image" src="">
+                                <!-- <h2 id="choice">You choose: <span id="your-choice"></span></h2> -->
 
-        <h2 id="waiting">Waiting for another player to join... </h2>
-        <div class="row justify-content-center">
-            <div id="game-info" class="col-md-6">
-                <h2 id="opponent-name">Your opponent is: <span id='opponent'></span></h2>
-                <h3>Opponent's wins: <span id='opponent-wins'></span></h3>
-                <h3>Opponent's losses: <span id='opponent-losses'></span></h3>
-                <h2 id="choice">You choose: <span id="your-choice"></span></h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="opponent-info" class="col-md-6">
+                <div class="card bg-light mb-3">
+                    <div class="card-header text-center">
+                        <div id="opponent-name">
+                            <h3 id='opponent'></h3>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 win-loss">
+                                <h3>Wins: <span id='opponent-wins'></span></h3>
+                                <h3>Losses: <span id='opponent-losses'></span></h3>
+                            </div>
+                            <div class="col-md-6">
+                                <img id="opponent-choice" class="rps-image" src="">
+                                <!-- <h3 id="opponent-choice">Your opponent chooses: <span id="opponent-choice-val"></span> -->
+                                </h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
+        <div id="game-info-temp" class="row text-center">
+            <div class="card bg-light card-override">
+                <!-- Find Game -->
+                <button type="button" id="queue" class="btn btn-block btn-danger">Find a game</button>
+
+                <!-- Waiting on player message -->
+                <h2 id="waiting">Waiting for another player to join... </h2>
+
+                <!-- Buttons choosing RPS moves -->
                 <div id="rps-buttons">
                     <button class="btn btn-success rps-button" type='button' data-move="rock">Rock</button>
                     <button class="btn btn-danger rps-button" type='button' data-move="paper">Paper</button>
                     <button class="btn btn-warning rps-button" type='button' data-move="scissors">Scissors</button>
                 </div>
 
+                <!-- One player has chosen a move and is waiting for the other one to pick -->
                 <h2 id="wait-for-opponent-choice">Waiting for opponent's choice...</h2>
                 <h2 id="wait-for-player-choice">Waiting for your choice...</h2>
 
                 <h2 id='countdown'></h2>
 
-                <div id="resolve-game">
-                    <h1>Your opponent chooses: <span id="opponent-choice"></span></h1>
-                    <h1 id="game-outcome"></h1>               
-                </div>
-                <button id="play-again" type='button'>Play Again</button>
+                <!-- Opponent disconnect message -->
                 <h2 id='disconnect-message'>Your opponent got scared and disconnected.</h2>
+
+                <!-- Game Result Display -->
+                <div id="resolve-game">
+                    <h1 id="game-outcome"></h1>
+                </div>
+                <button id="play-again" class="btn btn-block btn-danger" type='button'>Play Again</button>
             </div>
+        </div>
 
-            <div id="messages-col" class="col-md-6">
+        <div id="messages-col" class="row">
 
-                <!-- Chat-->
-                <div id="chatbox" class="card">
-                    <div class="card">
-                        <div class="card-header">Chat</div>
-                        <div class="card-body">
+            <!-- Chat-->
+            <div id="chatbox" class="card">
+                <div class="card">
+                    <div class="card-header text-center">Chat</div>
+                    <div class="card-body">
 
-                            <!-- Messages will be dynamically inserted -->
-                            <ul id="messages" class="list-group"></ul>
-                            <hr>
-                            <form id="sendMessage" method="post">
-                                <div class='input-group'>
-                                    <input id="message-input" type='text' name='message' class="form-control"
-                                        placeholder="Mildly flame your opponent here">
-                                    <div class='input-group-append'>
-                                        <button id="send-message" class='btn btn-primary' type="button">Send</button>
-                                    </div>
+                        <!-- Messages will be dynamically inserted -->
+                        <ul id="messages" class="list-group"></ul>
+                        <hr>
+                        <form id="sendMessage" method="post">
+                            <div class='input-group'>
+                                <input id="message-input" type='text' name='message' class="form-control"
+                                    placeholder="Mildly flame your opponent here">
+                                <div class='input-group-append'>
+                                    <button id="send-message" class='btn btn-primary'>Send</button>
                                 </div>
-                            </form>
-                            <div id="message-empty" class="alert alert-warning" role="alert">
-                                Message must contain characters.
                             </div>
-                            <hr>
-                            <h3>Insult ideas</h3>
-                            <ul>
-                                <li>"May every empty parking spot you see actually contain a motorcycle."</li>
-                                <li>"May you step barefoot on a Lego."</li>
-                                <li>"Your mother was a hamster and your father smells of elderberries."</li>
-                                <li>"What's taking so long? You only have three choices..."</li>
-                            </ul>
+                        </form>
+                        <div id="message-empty" class="alert alert-warning" role="alert">
+                            Message must contain characters.
                         </div>
+                        <hr>
+                        <h3>Insult ideas</h3>
+                        <ul>
+                            <li>"May every empty parking spot you see actually contain a motorcycle."</li>
+                            <li>"May you step barefoot on a Lego."</li>
+                            <li>"Your mother was a hamster and your father smells of elderberries."</li>
+                            <li>"What's taking so long? You only have three choices..."</li>
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -102,7 +146,9 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
         integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
         crossorigin="anonymous"></script>
-    <script src="https://www.gstatic.com/firebasejs/5.9.2/firebase.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.9.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.9.2/firebase-database.js"></script>
+    <script src='./assets/javascript/jQueryFunctions.js'></script>
     <script src='./assets/javascript/app.js'></script>
 </body>
 
