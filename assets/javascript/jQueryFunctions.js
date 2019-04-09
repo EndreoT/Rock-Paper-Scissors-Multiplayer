@@ -1,3 +1,5 @@
+// Only functions using jQuery to update DOM
+
 function createMessage(message) {
     const messageElem = $('<li class="list-group-item">')
         .append('<p><strong>' + message.user + ': </strong>' + message.message + '</p>');
@@ -11,8 +13,7 @@ function updateWinLossDisplay(wins, losses) {
     $('#losses').text(losses);
 }
 
-function initElements(userName) {
-    $('#queue').show();
+function initElements() {
     $('#waiting').hide();
     $('#wait-for-opponent-choice').hide();
     $('#wait-for-player-choice').hide();
@@ -20,14 +21,13 @@ function initElements(userName) {
     $('#opponent').text('');
     $('#opponent-wins').text('');
     $("#play-again").hide();
-    $('#player-name').text(userName);
     $('#rps-buttons').hide();
     $('#choice').hide();
 
     $('#your-choice').attr('src', '');
     $('#opponent-choice').attr('src', '');
 
-    $('#messages-col').hide();
+    $('#messages-row').hide();
     $('#message-empty').hide();
     $('#disconnect-message').hide();
     $('#countdown').text('');
@@ -40,7 +40,7 @@ function displayGame(opponentName) {
     $('#opponent').text(opponentName);
 
     $('#rps-buttons').show();
-    $('#messages-col').show();
+    $('#messages-row').show();
 }
 
 function hideWaitingForPlayerMessage() {

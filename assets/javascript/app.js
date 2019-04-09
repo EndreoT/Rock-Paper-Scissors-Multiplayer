@@ -1,12 +1,4 @@
-// Lessons learned:
-// - Posting of every message twice after RPS selection made - Issue was tracking of messages reference was
-// reassigned inside tracking of gameRef .on event, so that any change in the game would reassign messagesRef and 
-// trigger messagesRef.on listener. Yikes
-// - Changing a node inside an event listener listening on that same node will produce an infinite loop
-
-
 // TODO: Delete game and game chats on game finish **************
-
 
 
 // Initialize Firebase
@@ -25,18 +17,18 @@ firebase.initializeApp(config);
 const database = firebase.database();
 
 const connectedUsersRef = database.ref('.info/connected');
+const connectionsRef = database.ref('/connections');
 const gamesRef = database.ref('/game');
 const queueRef = database.ref('/queue');
 const playersRef = database.ref('/players');
-const connectionsRef = database.ref('/connections');
 const allChatsRef = database.ref('/chats');
 
 // References to DB nodes that will be assigned to
 let gameRef; // Ref for user's game
-let playerRef; // Ref to player
+let playerRef; // Ref to player of client
 let opponentRefCon; // Ref to opponent connection only
 let opponentRef; // Ref to opponent
-let messagesRef; // For messages of the particular game chat
+let messagesRef; // Ref to messages of only this game chat
 
 let opponentDC = false; // Monitor if opponent disconnects from game
 
@@ -61,19 +53,23 @@ const playerTypes = {
 
 // Player info
 const user = {
-    name: Math.floor(Math.random() * 100),
-    // name: '',
+    name: '',
     id: '',
     gameId: '',
     playerType: '' // value is one of the playerTypes properties ("CREATER" or "JOINER")'
 }
 
-// Get user name from input
-// ****************************
-// const name = prompt("Enter your name"); // Use modal instead **********************
-// user.name = name
-// ****************************
-
+// Get player user name
+$('#save-user-name').click(function () {
+    user.name = $('#user-name').val().trim();
+    $(this).attr('data-dismiss', "modal");
+    $('#enter-user-name').attr('disabled', true);
+    playersRef.child(user.id).update({
+        name: user.name
+    });
+    $('#player-name').text(user.name);
+    $('#queue').show();
+});
 
 // Retrieves opposite player type.
 // Ex. getOppositePlayerType(playerTypes.CREATER) ->  playerTypes.JOINER
@@ -100,7 +96,7 @@ connectedUsersRef.on('value', function (snapshot) {
 connectionsRef.once('child_added', function (connectionSnap) {
     user.id = connectionSnap.key;
 
-    // Adds player to playersRef
+    // Adds player to playersRef using same key as in /connections
     playersRef.child(user.id).set({
         name: user.name,
         id: user.id,
@@ -109,7 +105,7 @@ connectionsRef.once('child_added', function (connectionSnap) {
     });
     playerRef = playersRef.child(user.id);
 
-    // Establishes connection on player change
+    // Updates wins/losses display on player change
     playerRef.on('value', function (snapshot) {
         updateWinLossDisplay(snapshot.val().wins, snapshot.val().losses)
     });
@@ -145,7 +141,7 @@ function createOrJoinGame() {
         // Track changes in game
         trackGame();
 
-        // Wait for JOINER
+        // Wait until JOINER joins to then set up references and event listeners
         listenForSecondPlayerToJoinGame()
 
     }, function (error) {
@@ -178,41 +174,28 @@ function joinGame(gameKey, joinerInfo) {
     user.playerType = playerTypes.JOINER;
 }
 
-// Initializes references and listeners for only when second player joins game
+// Waits until second player joins game. If so, initializes database references and listeners  
 function listenForSecondPlayerToJoinGame() {
 
     tempGameRef = gameRef.on('value', function (snap) {
         const gameState = snap.val();
         if (!(gameState.JOINER.name === '')) {
+
             // Only need to listen until other player joins game. Only removes tempGame Ref listener
             gameRef.off('value', tempGameRef);
 
-            // Create first message greeting
-            if (user.playerType === playerTypes.CREATER) {
-                const message = {
-                    user: 'ChatBot',
-                    message: 'This is the beginning of the chat between you and your opponent.',
-                    timestamp: firebase.database.ServerValue.TIMESTAMP,
-                }
-                allChatsRef.child(gameRef.key).push(message);
-            }
-            // Assign reference to only the chat for this specific game
-            messagesRef = allChatsRef.child(gameRef.key);
-
             // Track messages for only this game
-            trackChat();
+            trackChat(gameRef.key);
 
+            // Get opponent
             const opponentType = getOppositePlayerType(user.playerType);
             const opponent = gameState[opponentType]
 
-            opponentRef = playersRef.child('/' + opponent.id);
-
-            // Track changes in opponent's connection to Firebase
-            opponentRefCon = connectionsRef.child('/' + opponent.id)
-            trackOpponentConnection();
+            // Track changes in opponent's connection to Firebase  
+            trackOpponentConnection(opponent.id);
 
             // Set up tracking for on opponent value change
-            trackOpponentChange();
+            trackOpponentChange(opponent.id);
 
             // Show game in client
             displayGame(opponent.name);
@@ -221,7 +204,9 @@ function listenForSecondPlayerToJoinGame() {
 }
 
 // Monitors if opponent disconnects
-function trackOpponentConnection() {
+function trackOpponentConnection(opponentId) {
+    opponentRefCon = connectionsRef.child('/' + opponentId)
+
     opponentRefCon.on('value', () => {
         // Boolean check needed because .on fires at start of game
         if (opponentDC) {
@@ -236,7 +221,9 @@ function trackOpponentConnection() {
 }
 
 // Tracks changes in /players/<opponent id> node 
-function trackOpponentChange() {
+function trackOpponentChange(opponentId) {
+    opponentRef = playersRef.child('/' + opponentId);
+
     opponentRef.on('value', function (snap) {
         // Updates opponent's wins after change in opponent node
         $('#opponent-wins').text(snap.val().wins);
@@ -245,7 +232,21 @@ function trackOpponentChange() {
 }
 
 // Watches changes in chat exchange between the two players. Chat node is /chats/<game id>
-function trackChat() {
+function trackChat(gameKey) {
+
+    // Create first message greeting. Only one player creates it, otherwise duplicate exists
+    if (user.playerType === playerTypes.CREATER) {
+        const message = {
+            user: 'ChatBot',
+            message: 'This is the beginning of the chat between you and your opponent.',
+            timestamp: firebase.database.ServerValue.TIMESTAMP,
+        }
+        allChatsRef.child(gameKey).push(message);
+    }
+
+    // Assign reference to only the chat for this specific game
+    messagesRef = allChatsRef.child(gameKey);
+
     messagesRef.on('child_added', function (snapshot) {
         createMessage(snapshot.val());
     });
@@ -255,14 +256,15 @@ function trackGame() { // Main function monitoring on game change
     gameRef.on('value', function (snap) {
         const gameState = snap.val();
 
+        const oppositePlayerType = getOppositePlayerType(user.playerType);
+
         // Check if both players submitted RPS moves
         if (!gameState.gameOver && gameState.CREATER.choice && gameState.JOINER.choice) {
             // Game is now over
             gameRef.update({
                 gameOver: true,
             });
-            const oppostitePlayerType = getOppositePlayerType(user.playerType)
-            const opponentChoice = gameState[oppostitePlayerType].choice
+            const opponentChoice = gameState[oppositePlayerType].choice
 
             hideWaitingForPlayerMessage();
 
@@ -282,10 +284,8 @@ function trackGame() { // Main function monitoring on game change
                 showEndGame(gameState.CREATER.choice, gameState.JOINER.choice, opponentChoice)
             }, 3000)
 
-            // Check if second player has joined game
+            // Check if game is in progress and is not over
         } else if (!gameState.gameOver && !gameState.isAvailable) {
-
-            const oppositePlayerType = getOppositePlayerType(user.playerType);
 
             // Check if opponent has chosen RPS move but player has not
             if (gameState[oppositePlayerType].choice && !gameState[user.playerType].choice) {
@@ -300,13 +300,14 @@ function trackGame() { // Main function monitoring on game change
     });
 }
 
+// Update player RPS move in Firebase
 function updatePlayerMove(choice) {
-    // Update player RPS move
     gameRef.child('/' + user.playerType).update({
-        choice: RPS_Moves[choice],
+        choice: RPS_Moves[choice.toUpperCase()],
     });
 }
 
+// Display game results. Updates player wins/losses
 function showEndGame(createrChoice, joinerChoice, opponentChoice) {
 
     displayGameOutcome(RPS_ImagesURL[opponentChoice.toLowerCase()]);
@@ -315,7 +316,7 @@ function showEndGame(createrChoice, joinerChoice, opponentChoice) {
     const winner = determineWinner(createrChoice, joinerChoice)
     let outcomeText;
     let backgroundColor;
-    console.log('winner', winner)
+
     if (winner === 'tie') {
         outcomeText = "You and your opponent tied!";
         backgroundColor = 'yellow';
@@ -339,11 +340,12 @@ function showEndGame(createrChoice, joinerChoice, opponentChoice) {
                 outcomeText = "You Lose!";
                 backgroundColor = 'red';
             }
-        }) 
+        });
     }
     $('#game-outcome').text(outcomeText).css("background-color", backgroundColor);
 }
 
+// Determine RPS outcome
 function determineWinner(createrChoice, joinerChoice) {
     let outcome = playerTypes.JOINER;
     if (createrChoice === joinerChoice) {
@@ -362,22 +364,15 @@ $('#queue').click(function () {
     $('#queue').hide();
     $('#waiting').show();
 
-    createOrJoinGame()
+    createOrJoinGame();
 });
 
 // Handle button click choosing either rock, paper, or scissors 
 $('.rps-button').click(function () {
     const choice = $(this).attr('data-move');
-
-
     showChoice('#your-choice', choice);
-
-    // $('#choice').show();
-    // $('#your-choice').text(choice);
-
     $('#rps-buttons').hide();
-
-    updatePlayerMove(choice.toUpperCase())
+    updatePlayerMove(choice)
 });
 
 function showChoice(ElementId, imageSrc) {
@@ -398,6 +393,9 @@ $('#play-again').click(function () {
 
     // reset display
     $('#messages').empty();
+    if (user.name) {
+        $('#queue').show();
+    }
     initElements();
 });
 
@@ -421,4 +419,4 @@ $('#send-message').click(function (event) {
     messagesRef.push(message);
 });
 
-initElements(user.name);
+initElements();

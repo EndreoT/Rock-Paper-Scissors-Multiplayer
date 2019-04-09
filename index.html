@@ -15,11 +15,46 @@
 <body>
     <header class="container text-center">
         <h1>Rock Paper Scissors Firebase Multiplayer Game</h1>
-        <h3>The somewhat antagonistic version</h3>
     </header>
 
     <div class="container">
+
         <div class="row">
+
+            <!-- Button trigger modal -->
+            <button id="enter-user-name" type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal">
+                Choose your username
+            </button>
+
+            <!-- Modal for user name entry -->
+            <div id="modal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="choose-user-name"
+                aria-hidden="true">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Enter you user name</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class='input-group'>
+                                <input id='user-name' type="text" class="form-control" placeholder="Enter a user name">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            <button id="save-user-name" type="button" class="btn btn-primary">Save changes</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Players info -->
+        <div class="row">
+
+            <!-- Player info -->
             <div class="col-md-6">
                 <div class="card bg-light mb-3">
                     <div class="card-header text-center">
@@ -38,6 +73,8 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Opponent info -->
             <div id="opponent-info" class="col-md-6">
                 <div class="card bg-light mb-3">
                     <div class="card-header text-center">
@@ -61,10 +98,12 @@
             </div>
         </div>
 
+        <!-- Game info that will be shown and hidden throughout game -->
         <div id="game-info-temp" class="row text-center">
             <div class="card bg-light card-override">
                 <!-- Find Game -->
-                <button type="button" id="queue" class="btn btn-block btn-danger">Find a game</button>
+                <button type="button" id="queue" class="btn btn-block btn-danger" style="display: none;">Find a
+                    game</button>
 
                 <!-- Waiting on player message -->
                 <h2 id="waiting">Waiting for another player to join... </h2>
@@ -93,7 +132,7 @@
             </div>
         </div>
 
-        <div id="messages-col" class="row">
+        <div id="messages-row" class="row">
 
             <!-- Chat-->
             <div id="chatbox" class="card">
@@ -130,7 +169,6 @@
         </div>
     </div>
 
-    <!-- Optional JavaScript -->
     <!-- jQuery first, then Popper.js, then Bootstrap JS -->
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
         integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
@@ -141,8 +179,12 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
         integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
         crossorigin="anonymous"></script>
+
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/5.9.2/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/5.9.2/firebase-database.js"></script>
+
+    <!-- Src -->
     <script src='./assets/javascript/jQueryFunctions.js'></script>
     <script src='./assets/javascript/app.js'></script>
 </body>
