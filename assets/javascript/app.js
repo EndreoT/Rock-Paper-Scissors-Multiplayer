@@ -68,6 +68,7 @@ $('#save-user-name').click(function () {
         name: user.name
     });
     $('#player-name').text(user.name);
+    $('#game-info-temp').show();
     $('#queue').show();
 });
 
