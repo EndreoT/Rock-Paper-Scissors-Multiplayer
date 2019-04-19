@@ -1,5 +1,7 @@
 # Rock-Paper-Scissors-Multiplayer using Firebase
 
+Deployed link: https://endreot.github.io/Rock-Paper-Scissors-Multiplayer/
+
 ### Description
 Play a multiplayer game of rock paper scissors. Chat with your opponents in real time to mock their rock paper scissors strategy.
 
@@ -8,12 +10,13 @@ This project provides an outlet for users who want to play a simple game of rock
 
 
 ### Results
-After choosing a username, players can queue up for a game, and will wait until another player also queues up. If a game is available to join, the second player will join the first and the game begins. Players can chat with opponents, be notified of opponent disconnects, and maintain wins/losses. However, user information on the client will not persist on page refresh. Information about player connections, player details, messages between players, and game state is stored in Firebase
+After choosing a username, players can queue up for a game, and will wait until another player also queues up. If a game is available to join, the second player will join the first, and the game begins. Players can chat with opponents, be notified of opponent disconnects, and maintain wins/losses. However, user information on the client will not persist on page refresh. Information about player connections, player details, messages between players, and game state is stored in Firebase
 
 ### Future Improvements
 - [ ] Implement Firebase authentication through an email and password, or throught a federated provider (Google, Facebook, etc). 
 - [ ] Force players to make an RPS choice after a certain ammount of time or force a surrender
 - [ ] Implement a global top players scoreboard 
+- [ ] If a game creater disconnects before another player can join, make game no longer available to join 
 
 ```bash
 Firebase database structure
